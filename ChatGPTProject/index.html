@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movie Manager</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 720px;
+      background: rgba(255, 255, 255, 0.13);
+      backdrop-filter: blur(15px);
+      padding: 30px;
+      border-radius: 25px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 36px;
+    }
+
+    .subtitle {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #ddd;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+
+    input, select {
+      border: none;
+      outline: none;
+      padding: 14px;
+      border-radius: 14px;
+      font-size: 15px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 14px 18px;
+      cursor: pointer;
+      font-weight: bold;
+      color: white;
+      background: linear-gradient(135deg, #ff512f, #dd2476);
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+
+    form button {
+      grid-column: span 2;
+    }
+
+    .movie-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .movie-card {
+      list-style: none;
+      background: rgba(255, 255, 255, 0.18);
+      padding: 18px;
+      border-radius: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .movie-info {
+      flex: 1;
+    }
+
+    .movie-info h3 {
+      margin-bottom: 8px;
+    }
+
+    .details {
+      color: #eee;
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+
+    .rating-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      color: #eee;
+    }
+
+    .progress {
+      height: 10px;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #00f260, #0575e6);
+    }
+
+    .delete {
+      background: #e63946;
+    }
+
+    .empty {
+      text-align: center;
+      color: #ddd;
+      padding: 15px;
+    }
+
+    @media (max-width: 650px) {
+      form {
+        grid-template-columns: 1fr;
+      }
+
+      form button {
+        grid-column: span 1;
+      }
+
+      .movie-card {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <h1>🎬 Movie Ratings</h1>
+    <p ></p>
+
+    <form id="movieForm">
+      <input type="text" id="movieName" placeholder="Movie name" required />
+      <input type="text" id="movieDirector" placeholder="Director name" required />
+
+      <select id="movieType" required>
+        <option value="">Select movie type</option>
+        <option value="Action">Action</option>
+        <option value="Comedy">Comedy</option>
+        <option value="Drama">Drama</option>
+        <option value="Horror">Horror</option>
+        <option value="Romance">Romance</option>
+        <option value="Sci-Fi">Sci-Fi</option>
+        <option value="Animation">Animation</option>
+        <option value="Documentary">Documentary</option>
+      </select>
+
+      <input type="number" id="movieRating" placeholder="Rating 1-10" min="1" max="10" required />
+
+      <button type="submit">Add Movie</button>
+    </form>
+
+    <ul id="movieList" class="movie-list"></ul>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      onSnapshot,
+      deleteDoc,
+      doc,
+      query,
+      orderBy
+    } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBcASg-pIrX8aEImXIqBcKfborfxIZRLak",
+      authDomain: "movies-910c3.firebaseapp.com",
+      projectId: "movies-910c3",
+      storageBucket: "movies-910c3.firebasestorage.app",
+      messagingSenderId: "661761949848",
+      appId: "1:661761949848:web:d5b46b6e0ea9fce1f890ed"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const moviesCollection = collection(db, "movies");
+    const moviesQuery = query(moviesCollection, orderBy("rating", "desc"));
+
+    const movieForm = document.getElementById("movieForm");
+    const movieName = document.getElementById("movieName");
+    const movieDirector = document.getElementById("movieDirector");
+    const movieType = document.getElementById("movieType");
+    const movieRating = document.getElementById("movieRating");
+    const movieList = document.getElementById("movieList");
+
+    movieForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const name = movieName.value.trim();
+      const director = movieDirector.value.trim();
+      const type = movieType.value;
+      const rating = Number(movieRating.value);
+      const percentage = rating * 10;
+
+      if (!name || !director || !type || rating < 1 || rating > 10) {
+        alert("Please fill all fields correctly.");
+        return;
+      }
+
+      await addDoc(moviesCollection, {
+        name,
+        director,
+        type,
+        rating,
+        percentage
+      });
+
+      movieForm.reset();
+    });
+
+    onSnapshot(moviesQuery, (snapshot) => {
+      movieList.innerHTML = "";
+
+      if (snapshot.empty) {
+        movieList.innerHTML = `<p class="empty">No movies yet 🍿</p>`;
+        return;
+      }
+
+      snapshot.forEach((movieDoc) => {
+        const movie = movieDoc.data();
+
+        const li = document.createElement("li");
+        li.className = "movie-card";
+
+        li.innerHTML = `
+          <div class="movie-info">
+            <h3>🎥 ${movie.name}</h3>
+
+            <div class="details">
+              🎬 Director: ${movie.director}<br>
+              🏷️ Type: ${movie.type}
+            </div>
+
+            <div class="rating-row">
+              <span>Rating: ${movie.rating}/10</span>
+              <strong>${movie.percentage}%</strong>
+            </div>
+
+            <div class="progress">
+              <div class="progress-bar" style="width: ${movie.percentage}%"></div>
+            </div>
+          </div>
+
+          <button class="delete">Delete</button>
+        `;
+
+        li.querySelector(".delete").addEventListener("click", async () => {
+          await deleteDoc(doc(db, "movies", movieDoc.id));
+        });
+
+        movieList.appendChild(li);
+      });
+    });
+  </script>
+</body>
+</html>

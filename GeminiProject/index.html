@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Manager</title>
+    <style>
+        :root { --bg: #2d3748; --surface: #4a5568; --accent: #f56565; --text: #ffffff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a202c; color: var(--text); display: flex; justify-content: center; padding: 40px 20px; }
+        .container { width: 100%; max-width: 600px; background: var(--surface); padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h1 { text-align: center; margin-bottom: 25px; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; box-sizing: border-box; background: #edf2f7; color: #1a202c; }
+        button#add-btn { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        .movie-card { background: #718096; padding: 20px; border-radius: 15px; margin-top: 20px; border: 1px solid #a0aec0; position: relative; }
+        .progress-bg { width: 100%; height: 10px; background: #2d3748; border-radius: 5px; margin-top: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #38b2ac, #3182ce); border-radius: 5px; transition: width 0.5s ease; }
+        .delete-btn { background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; position: absolute; top: 20px; right: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎬 Movie Manager</h1>
+    <input type="text" id="title" placeholder="Movie name">
+    <input type="text" id="director" placeholder="Director name">
+    <select id="genre">
+        <option value="">Select movie type</option>
+        <option value="Drama">Drama</option>
+        <option value="Romance">Romance</option>
+        <option value="Sci-Fi">Sci-Fi</option>
+        <option value="Action">Action</option>
+        <option value="Comedy">Comedy</option>
+    </select>
+    <input type="number" id="rating" placeholder="Rating 1-10" min="1" max="10">
+    <button id="add-btn" onclick="addMovie()">Add Movie</button>
+
+    <div id="movieList"></div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDkZ2tL3li8CQimMrr_H8mkxacssCIBo8w",
+        authDomain: "movie-ee32f.firebaseapp.com",
+        projectId: "movie-ee32f",
+        storageBucket: "movie-ee32f.firebasestorage.app",
+        messagingSenderId: "424810924875",
+        appId: "1:424810924875:web:b531ab413c62b1613936ce"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.addMovie = async () => {
+        const title = document.getElementById('title').value;
+        const rating = Number(document.getElementById('rating').value);
+        if(!title || !rating) return alert("Please fill in the Name and Rating.");
+        
+        await addDoc(collection(db, "movies"), {
+            title,
+            director: document.getElementById('director').value || "N/A",
+            genre: document.getElementById('genre').value || "None",
+            rating
+        });
+        document.querySelectorAll('input, select').forEach(i => i.value = '');
+    };
+
+    window.deleteMovie = async (id) => await deleteDoc(doc(db, "movies", id));
+
+    // Order by rating descending (Highest first)
+    onSnapshot(query(collection(db, "movies"), orderBy("rating", "desc")), (snap) => {
+        const list = document.getElementById('movieList');
+        list.innerHTML = '';
+        snap.forEach((d) => {
+            const m = d.data();
+            const percent = (m.rating / 10) * 100;
+            list.innerHTML += `
+                <div class="movie-card">
+                    <button class="delete-btn" onclick="deleteMovie('${d.id}')">Delete</button>
+                    <h3>🎬 ${m.title}</h3>
+                    <p>🎥 Director: ${m.director}</p>
+                    <p>🏷️ Type: ${m.genre}</p>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Rating: ${m.rating}/10</span>
+                        <b>${percent}%</b>
+                    </div>
+                    <div class="progress-bg"><div class="progress-fill" style="width: ${percent}%"></div></div>
+                </div>`;
+        });
+    });
+</script>
+</body>
+</html>
